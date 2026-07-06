@@ -92,7 +92,36 @@ async function createPaste(request) {
 // --- 占位函数 ---
 
 async function getPasteRaw(request, id) {
-  return new Response('Not implemented', { status: 501 });
+  const data = await KV.get(id);
+  if (!data) {
+    return jsonResponse({ error: 'Not found' }, 404);
+  }
+
+  let paste;
+  try {
+    paste = JSON.parse(data);
+  } catch {
+    return jsonResponse({ error: 'Invalid data' }, 500);
+  }
+
+  // Check expiry
+  if (Date.now() > paste.expires_at) {
+    await KV.delete(id);
+    return jsonResponse({ error: 'Expired' }, 404);
+  }
+
+  // Burn after reading
+  if (paste.burn_after_reading) {
+    await KV.delete(id);
+  }
+
+  return new Response(paste.content, {
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
 }
 
 async function getPasteView(request, id) {
