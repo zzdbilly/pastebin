@@ -1,9 +1,7 @@
 name = "pastebin"
 main = "src/worker.js"
 compatibility_date = "2026-07-06"
+
 kv_namespaces = [
-  { binding = "KV", id = "YOUR_KV_NAMESPACE_ID" }
-]
-routes = [
-  { pattern = "pb.zzdbilly.workers.dev", zone_id = "" }
+  { binding = "KV", id = "3c7955cb035343338dd1ff6d45dc1137" }
 ]
