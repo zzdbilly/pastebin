@@ -428,7 +428,7 @@ async function createPaste(){
         burn_after_reading:document.getElementById('burn-after').checked
       })
     });
-    if(!res.ok){const err=await res.text();throw new Error(err||'Failed');}
+    if(!res.ok){const errText=await res.text();let msg='Failed';try{const j=JSON.parse(errText);msg=j.error||j.message||errText;}catch{msg=errText;}throw new Error(msg);}
     const data=await res.json();
     document.getElementById('result-url').value=data.url;
     result.classList.add('show');
