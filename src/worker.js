@@ -303,7 +303,152 @@ function copyContent() {
 }
 
 function serveHomepage() {
-  return new Response('Not implemented', { status: 501 });
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PasteBin — share text simply</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#0d1117;color:#c9d1d9;min-height:100vh;
+  }
+  .container {
+    max-width:800px;margin:0 auto;padding:40px 20px;
+    display:flex;flex-direction:column;min-height:100vh;
+  }
+  .main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  h1{font-size:28px;font-weight:700;margin-bottom:8px;}
+  .subtitle{color:#8b949e;font-size:14px;margin-bottom:24px;}
+  textarea {
+    width:100%;max-width:700px;height:240px;
+    background:#161b22;color:#c9d1d9;border:1px solid #30363d;
+    border-radius:8px;padding:16px;font-size:15px;line-height:1.5;
+    font-family:'SF Mono','Fira Code','Consolas',monospace;
+    resize:vertical;outline:none;transition:border-color 0.15s;
+  }
+  textarea:focus{border-color:#58a6ff;}
+  textarea::placeholder{color:#484f58;}
+  .options {
+    width:100%;max-width:700px;display:flex;gap:16px;
+    align-items:center;margin-top:12px;flex-wrap:wrap;
+  }
+  .options label{font-size:14px;color:#8b949e;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  select {
+    background:#21262d;color:#c9d1d9;border:1px solid #30363d;
+    border-radius:6px;padding:6px 10px;font-size:14px;cursor:pointer;outline:none;
+  }
+  select:focus{border-color:#58a6ff;}
+  input[type="checkbox"]{accent-color:#58a6ff;width:16px;height:16px;cursor:pointer;}
+  .actions{width:100%;max-width:700px;margin-top:16px;}
+  button {
+    background:#238636;color:#fff;border:none;border-radius:6px;
+    padding:10px 24px;font-size:15px;font-weight:500;cursor:pointer;
+    transition:background 0.15s;
+  }
+  button:hover{background:#2ea043;}
+  button:disabled{opacity:0.5;cursor:not-allowed;}
+  .result{width:100%;max-width:700px;margin-top:20px;display:none;}
+  .result.show{display:block;}
+  .result input {
+    width:100%;background:#161b22;color:#58a6ff;border:1px solid #30363d;
+    border-radius:6px;padding:12px 16px;font-size:15px;font-family:'SF Mono',monospace;
+    outline:none;cursor:text;
+  }
+  .result input:focus{border-color:#58a6ff;}
+  .result .hint{margin-top:8px;font-size:13px;color:#8b949e;}
+  .error-msg{color:#f85149;font-size:14px;margin-top:12px;display:none;}
+  .error-msg.show{display:block;}
+  .spinner{display:none;border:2px solid #30363d;border-top:2px solid #58a6ff;border-radius:50%;width:18px;height:18px;animation:spin 0.8s linear infinite;vertical-align:middle;margin-left:8px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .footer{text-align:center;padding:32px 0;font-size:13px;color:#484f58;}
+  .footer a{color:#58a6ff;text-decoration:none;}
+  @media(max-width:600px){
+    .container{padding:20px 12px;}
+    h1{font-size:24px;}
+    textarea{height:180px;font-size:14px;}
+    .options{gap:10px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="main">
+    <h1>PasteBin</h1>
+    <p class="subtitle">Paste text, share instantly</p>
+    <textarea id="content" placeholder="Paste your text here..." spellcheck="false"></textarea>
+    <div class="options">
+      <label>
+        Expires:
+        <select id="expires-in">
+          <option value="3600">1 hour</option>
+          <option value="86400" selected>24 hours</option>
+          <option value="604800">7 days</option>
+        </select>
+      </label>
+      <label>
+        <input type="checkbox" id="burn-after"> Burn after reading
+      </label>
+    </div>
+    <div class="error-msg" id="error-msg"></div>
+    <div class="actions">
+      <button id="submit-btn" onclick="createPaste()">
+        Create Paste
+        <span class="spinner" id="spinner"></span>
+      </button>
+    </div>
+    <div class="result" id="result">
+      <input type="text" id="result-url" readonly onclick="this.select()">
+      <p class="hint">Click to select, Ctrl+C to copy</p>
+    </div>
+  </div>
+  <div class="footer">
+    <a href="https://github.com/zzdbilly/pastebin">PasteBin</a> &mdash; simple text sharing
+  </div>
+</div>
+<script>
+async function createPaste(){
+  const content=document.getElementById('content').value.trim();
+  if(!content){showError('Please paste some text first.');return;}
+  const btn=document.getElementById('submit-btn');
+  const spinner=document.getElementById('spinner');
+  const errorMsg=document.getElementById('error-msg');
+  const result=document.getElementById('result');
+  btn.disabled=true;spinner.style.display='inline-block';
+  errorMsg.classList.remove('show');result.classList.remove('show');
+  try{
+    const res=await fetch('/api/new',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        content:content,
+        expires_in:parseInt(document.getElementById('expires-in').value),
+        burn_after_reading:document.getElementById('burn-after').checked
+      })
+    });
+    if(!res.ok){const err=await res.text();throw new Error(err||'Failed');}
+    const data=await res.json();
+    document.getElementById('result-url').value=data.url;
+    result.classList.add('show');
+    document.getElementById('content').value='';
+  }catch(e){showError(e.message);}
+  finally{btn.disabled=false;spinner.style.display='none';}
+}
+function showError(msg){
+  const el=document.getElementById('error-msg');
+  el.textContent=msg;el.classList.add('show');
+}
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();createPaste();}
+});
+</script>
+</body>
+</html>`;
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html;charset=utf-8', 'Access-Control-Allow-Origin': '*' }
+  });
 }
 
 // --- 主路由 ---
