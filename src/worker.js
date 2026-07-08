@@ -503,6 +503,11 @@ async function getPasteView(request, id) {
   // Check if manage token is present in query string (from creation redirect)
   const manageTokenParam = url.searchParams.get('manage') || '';
 
+  // Generate line numbers
+  const lineCount = paste.content.split('\n').length;
+  const lineNumbersHtml = Array.from({length: lineCount}, (_, i) => `<span>${i + 1}</span>`).join('');
+  const lineNumberWidth = Math.max(3, String(lineCount).length + 1) + 'ch';
+
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -548,8 +553,20 @@ async function getPasteView(request, id) {
     font-size: 12px; font-weight: 500;
     background: #21262d; color: #d29922; border: 1px solid #d29922;
   }
+  .code-block {
+    display: flex; background: #161b22; border: 1px solid #30363d;
+    border-radius: 8px; overflow: hidden;
+  }
+  .line-numbers {
+    flex-shrink: 0; padding: 20px 12px 20px 20px;
+    text-align: right; color: #484f58; user-select: none; -webkit-user-select: none;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 14px; line-height: 1.5; border-right: 1px solid #21262d;
+    white-space: nowrap; overflow: hidden;
+  }
+  .line-numbers span { display: block; }
   pre {
-    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    flex: 1; margin: 0; background: none; border: none;
     padding: 20px; overflow-x: auto; font-size: 14px; line-height: 1.5;
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   }
@@ -566,7 +583,13 @@ async function getPasteView(request, id) {
     .container { padding: 12px; }
     .paste-title { font-size: 18px; }
     pre { font-size: 13px; padding: 12px; }
+    .line-numbers { font-size: 13px; padding: 12px 8px 12px 12px; }
     .meta { gap: 8px; font-size: 12px; }
+  }
+  @media (max-width: 400px) {
+    .line-numbers { display: none; }
+    .code-block { border-radius: 8px; }
+    pre { border: 1px solid #30363d; border-radius: 8px; }
   }
 </style>
 </head>
@@ -589,7 +612,10 @@ async function getPasteView(request, id) {
   <div class="toolbar">
     <button onclick="copyContent()">📋 Copy</button>
   </div>
-  <pre><code class="language-${escapeHtml(language)} hljs">${escapedContent}</code></pre>
+  <div class="code-block">
+    <div class="line-numbers" aria-hidden="true" style="min-width:${lineNumberWidth}">${lineNumbersHtml}</div>
+    <pre><code class="language-${escapeHtml(language)} hljs">${escapedContent}</code></pre>
+  </div>
   <div class="footer">
     <a href="https://github.com/zzdbilly/pastebin">PasteBin</a> &mdash; simple text sharing
   </div>
