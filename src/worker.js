@@ -43,7 +43,7 @@ function generateManageToken() {
 
 // Validate expires_in value (1h, 24h, 7d)
 function parseExpiresIn(val) {
-  const allowed = { '3600': 3600, '86400': 86400, '604800': 604800 };
+  const allowed = { '1800': 1800, '3600': 3600, '43200': 43200, '86400': 86400, '604800': 604800, '2592000': 2592000 };
   return allowed[val] || 3600;
 }
 
@@ -528,6 +528,8 @@ async function getPasteView(request, id) {
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 0; border-bottom: 1px solid #30363d; margin-bottom: 20px;
   }
+  .header-logo { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .header-logo svg { flex-shrink: 0; }
   .header a { color: #58a6ff; text-decoration: none; font-size: 14px; }
   .header a:hover { text-decoration: underline; }
   .paste-title {
@@ -596,7 +598,15 @@ async function getPasteView(request, id) {
 <body>
 <div class="container">
   <div class="header">
-    <span style="font-weight:600;">PasteBin</span>
+    <div class="header-logo">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="8" width="36" height="32" rx="6" stroke="#58a6ff" stroke-width="2.5" fill="#161b22"/>
+        <rect x="9" y="5" width="26" height="6" rx="3" fill="#238636"/>
+        <rect x="12" y="5" width="8" height="6" rx="3" fill="#2ea043"/>
+        <text x="24" y="12" text-anchor="middle" fill="#fff" font-size="8" font-weight="700" font-family="sans-serif">P</text>
+      </svg>
+      <span>PasteBin</span>
+    </div>
     <a href="/">+ New Paste</a>
   </div>
   <div class="paste-title">${escapeHtml(displayTitle)}</div>
@@ -703,6 +713,8 @@ async function renderManagePage(request, id) {
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 0; border-bottom: 1px solid #30363d; margin-bottom: 24px;
   }
+  .header-logo { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .header-logo svg { flex-shrink: 0; }
   .header a { color: #58a6ff; text-decoration: none; font-size: 14px; }
   .header a:hover { text-decoration: underline; }
   .manage-title {
@@ -800,7 +812,15 @@ async function renderManagePage(request, id) {
 <body>
 <div class="container">
   <div class="header">
-    <span style="font-weight:600;">PasteBin · Manage</span>
+    <div class="header-logo">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="8" width="36" height="32" rx="6" stroke="#58a6ff" stroke-width="2.5" fill="#161b22"/>
+        <rect x="9" y="5" width="26" height="6" rx="3" fill="#238636"/>
+        <rect x="12" y="5" width="8" height="6" rx="3" fill="#2ea043"/>
+        <text x="24" y="12" text-anchor="middle" fill="#fff" font-size="8" font-weight="700" font-family="sans-serif">P</text>
+      </svg>
+      <span>PasteBin · Manage</span>
+    </div>
     <a href="/">+ New Paste</a>
   </div>
   <div class="manage-title">⚙️ Manage Paste</div>
@@ -840,9 +860,12 @@ async function renderManagePage(request, id) {
     <div class="action-row">
       <label style="font-size:14px;color:#8b949e;">Extend expiry by:</label>
       <select id="extend-select">
+        <option value="1800">30 minutes</option>
         <option value="3600">1 hour</option>
+        <option value="43200">12 hours</option>
         <option value="86400">24 hours</option>
         <option value="604800">7 days</option>
+        <option value="2592000">30 days</option>
       </select>
       <button class="btn btn-extend" id="extend-btn" onclick="extendPaste()">
         Extend<span class="spinner" id="extend-spinner"></span>
@@ -1040,8 +1063,11 @@ function serveHomepage() {
     display:flex;flex-direction:column;min-height:100vh;
   }
   .main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-  h1{font-size:28px;font-weight:700;margin-bottom:8px;}
-  .subtitle{color:#8b949e;font-size:14px;margin-bottom:24px;}
+  .logo{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
+  .logo svg{flex-shrink:0;}
+  .logo-text{text-align:left;}
+  .logo-text h1{font-size:28px;font-weight:700;margin-bottom:4px;}
+  .logo-text .subtitle{color:#8b949e;font-size:14px;margin:0;}
   .title-input {
     width:100%;max-width:700px;
     background:#161b22;color:#c9d1d9;border:1px solid #30363d;
@@ -1141,8 +1167,21 @@ function serveHomepage() {
 <body>
 <div class="container">
   <div class="main">
-    <h1>PasteBin</h1>
-    <p class="subtitle">Paste text, share instantly</p>
+    <div class="logo">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="8" width="36" height="32" rx="6" stroke="#58a6ff" stroke-width="2.5" fill="#161b22"/>
+        <rect x="9" y="5" width="26" height="6" rx="3" fill="#238636"/>
+        <rect x="12" y="5" width="8" height="6" rx="3" fill="#2ea043"/>
+        <text x="24" y="11" text-anchor="middle" fill="#fff" font-size="8" font-weight="700" font-family="sans-serif">P</text>
+        <line x1="12" y1="22" x2="32" y2="22" stroke="#30363d" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="12" y1="28" x2="28" y2="28" stroke="#30363d" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="12" y1="34" x2="24" y2="34" stroke="#30363d" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div class="logo-text">
+        <h1>PasteBin</h1>
+        <p class="subtitle">Paste text, share instantly</p>
+      </div>
+    </div>
     <input type="text" class="title-input" id="title" placeholder="Title (optional)" maxlength="200">
     <textarea id="content" placeholder="Paste your text here..." spellcheck="false"></textarea>
     <div class="stats" id="stats">0 chars · 0 lines</div>
@@ -1150,9 +1189,12 @@ function serveHomepage() {
       <label>
         Expires:
         <select id="expires-in">
+          <option value="1800">30 minutes</option>
           <option value="3600">1 hour</option>
+          <option value="43200">12 hours</option>
           <option value="86400" selected>24 hours</option>
           <option value="604800">7 days</option>
+          <option value="2592000">30 days</option>
         </select>
       </label>
       <label>
