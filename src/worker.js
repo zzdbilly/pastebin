@@ -140,6 +140,9 @@ async function createPaste(request) {
   const title = (typeof body.title === 'string' && body.title.trim()) ? body.title.trim().slice(0, 200) : '';
   const userLanguage = (typeof body.language === 'string' && body.language.trim()) ? body.language.trim().toLowerCase() : '';
   const password = (typeof body.password === 'string' && body.password.length > 0) ? body.password : '';
+  const customSlug = (typeof body.custom_slug === 'string' && body.custom_slug.trim())
+    ? body.custom_slug.trim().toLowerCase().slice(0, 32)
+    : '';
 
   // Determine language: user-specified or auto-detect
   let language = userLanguage;
@@ -153,14 +156,25 @@ async function createPaste(request) {
     passwordHash = await sha256(password);
   }
 
-  // Generate unique ID (retry if collision)
+  // Generate unique ID (custom slug or random)
   let id;
-  for (let i = 0; i < 5; i++) {
-    id = generateId();
-    const existing = await KV.get(id);
-    if (!existing) break;
-    if (i === 4) {
-      return jsonResponse({ error: 'Failed to generate unique ID' }, 500);
+  if (customSlug) {
+    if (!/^[a-z0-9-]+$/.test(customSlug)) {
+      return jsonResponse({ error: 'Custom slug can only contain a-z, 0-9, and hyphens' }, 400);
+    }
+    const existing = await KV.get(customSlug);
+    if (existing) {
+      return jsonResponse({ error: 'This custom slug is already taken' }, 409);
+    }
+    id = customSlug;
+  } else {
+    for (let i = 0; i < 5; i++) {
+      id = generateId();
+      const existing = await KV.get(id);
+      if (!existing) break;
+      if (i === 4) {
+        return jsonResponse({ error: 'Failed to generate unique ID' }, 500);
+      }
     }
   }
 
@@ -1158,6 +1172,8 @@ function serveHomepage() {
   @keyframes spin{to{transform:rotate(360deg);}}
   .footer{text-align:center;padding:32px 0;font-size:13px;color:#484f58;}
   .footer a{color:#58a6ff;text-decoration:none;}
+  #custom-slug:focus{border-color:#58a6ff!important;}
+  #custom-slug::placeholder{color:#484f58;}
   @media(max-width:600px){
     .container{padding:20px 12px;}
     h1{font-size:24px;}
@@ -1211,6 +1227,9 @@ function serveHomepage() {
       <label>
         <input type="checkbox" id="burn-after"> Burn after reading
       </label>
+      <label style="position:relative;display:flex;align-items:center;gap:6px;">
+        🔗 <input type="text" id="custom-slug" placeholder="Custom slug (optional)" maxlength="32" style="width:130px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;font-size:14px;outline:none;transition:border-color 0.15s;font-family:'SF Mono',monospace;" oninput="this.style.borderColor=this.value&&!/^[a-z0-9-]+$/i.test(this.value)?'#f85149':'#30363d'">
+      </label>
       <label>
         🔒 <input type="password" id="password" placeholder="Password (optional)">
       </label>
@@ -1239,6 +1258,10 @@ function serveHomepage() {
       <div class="warning">
         ⚠️ Save the Manage URL! You won't see it again. It's needed to delete or extend this paste.
       </div>
+    </div>
+    <div class="recent-pastes" id="recent-pastes" style="display:none;width:100%;max-width:700px;margin-top:20px;">
+      <div style="font-size:13px;color:#8b949e;margin-bottom:12px;">📋 Recent Pastes</div>
+      <div id="recent-list"></div>
     </div>
   </div>
   <div class="footer">
@@ -1289,6 +1312,8 @@ async function createPaste(){
     };
     const pw=document.getElementById('password').value;
     if(pw)body.password=pw;
+    const slug=document.getElementById('custom-slug').value.trim().toLowerCase();
+    if(slug)body.custom_slug=slug;
     const res=await fetch('/api/new',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1302,7 +1327,13 @@ async function createPaste(){
     document.getElementById('content').value='';
     document.getElementById('title').value='';
     document.getElementById('password').value='';
+    document.getElementById('custom-slug').value='';
     updateStats();
+    var recent=JSON.parse(localStorage.getItem('pastebin_recent')||'[]');
+    recent.unshift({id:data.id,title:body.title||'(untitled)',url:data.url,manage_url:data.manage_url,created_at:Date.now()});
+    if(recent.length>10)recent.length=10;
+    localStorage.setItem('pastebin_recent',JSON.stringify(recent));
+    renderRecent();
   }catch(e){showError(e.message);}
   finally{btn.disabled=false;spinner.style.display='none';}
 }
@@ -1313,6 +1344,29 @@ function showError(msg){
 document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();createPaste();}
 });
+function escapeHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function renderRecent(){
+  var recent=JSON.parse(localStorage.getItem('pastebin_recent')||'[]');
+  var container=document.getElementById('recent-pastes');
+  var list=document.getElementById('recent-list');
+  if(!container||!list)return;
+  if(recent.length===0){container.style.display='none';return;}
+  container.style.display='block';
+  list.innerHTML=recent.map(function(p){
+    var timeAgo=Math.floor((Date.now()-p.created_at)/3600000);
+    var timeStr=timeAgo<1?'just now':timeAgo<24?timeAgo+'h ago':Math.floor(timeAgo/24)+'d ago';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:6px;background:#161b22;border:1px solid #30363d;border-radius:8px;">'+
+      '<div style="flex:1;min-width:0;">'+
+      '<div style="font-size:14px;font-weight:500;color:#c9d1d9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtml(p.title)+'</div>'+
+      '<div style="font-size:11px;color:#484f58;margin-top:2px;"><a href="'+escapeHtml(p.url)+'" style="color:#58a6ff;text-decoration:none;">'+escapeHtml(p.url)+'</a> · '+timeStr+'</div>'+
+      '</div>'+
+      '<a href="'+escapeHtml(p.manage_url)+'" style="font-size:12px;color:#d29922;text-decoration:none;white-space:nowrap;margin-left:8px;">Manage</a>'+
+      '</div>';
+  }).join('');
+}
+renderRecent();
 </script>
 </body>
 </html>`;
