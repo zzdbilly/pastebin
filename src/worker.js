@@ -1376,7 +1376,7 @@ function serveHomepage() {
   input[type="password"] {
     background:#21262d;color:#c9d1d9;border:1px solid #30363d;
     border-radius:6px;padding:6px 10px;font-size:14px;outline:none;
-    width:120px;transition:border-color 0.15s;
+    width:180px;min-width:140px;transition:border-color 0.15s;
   }
   input[type="password"]:focus{border-color:#58a6ff;}
   input[type="password"]::placeholder{color:#484f58;}
@@ -1484,7 +1484,7 @@ function serveHomepage() {
         🔗 <input type="text" id="custom-slug" placeholder="Custom slug (optional)" maxlength="32" style="width:130px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;font-size:14px;outline:none;transition:border-color 0.15s;font-family:'SF Mono',monospace;" oninput="this.style.borderColor=this.value&&!/^[a-z0-9-]+$/i.test(this.value)?'#f85149':'#30363d'">
       </label>
       <label>
-        🔒 <input type="password" id="password" placeholder="Password (optional)">
+        🔒 <input type="password" id="password" placeholder="Password">
       </label>
     </div>
     <div class="hint-row">
