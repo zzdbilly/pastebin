@@ -1376,7 +1376,7 @@ function serveHomepage() {
   input[type="password"] {
     background:#21262d;color:#c9d1d9;border:1px solid #30363d;
     border-radius:6px;padding:6px 10px;font-size:14px;outline:none;
-    width:180px;min-width:140px;transition:border-color 0.15s;
+    width:120px;flex-shrink:0;transition:border-color 0.15s;
   }
   input[type="password"]:focus{border-color:#58a6ff;}
   input[type="password"]::placeholder{color:#484f58;}
