@@ -924,13 +924,23 @@ async function renderManagePage(request, id) {
     background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
   }
   .btn-view:hover { background: #30363d; }
-  .confirm-box {
-    display: none; margin-top: 12px; padding: 16px;
-    background: #1c0d0d; border: 1px solid #da3633; border-radius: 8px;
+  .modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 1000;
+    align-items: center; justify-content: center;
   }
-  .confirm-box.show { display: block; }
-  .confirm-box p { font-size: 14px; margin-bottom: 12px; color: #f85149; }
-  .confirm-buttons { display: flex; gap: 8px; }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #161b22; border: 1px solid #da3633; border-radius: 12px;
+    padding: 28px 32px; max-width: 420px; width: 90%; text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: modalIn 0.18s ease-out;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+  .modal-icon { font-size: 40px; margin-bottom: 12px; }
+  .modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #f0f6fc; }
+  .modal p { font-size: 14px; margin-bottom: 20px; color: #8b949e; line-height: 1.5; }
+  .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+  .modal .btn { min-width: 110px; }
   .status-msg {
     margin-top: 12px; padding: 10px 16px; border-radius: 6px; font-size: 14px;
     display: none;
@@ -1022,13 +1032,17 @@ async function renderManagePage(request, id) {
         🗑 Delete Paste
       </button>
     </div>
-    <div class="confirm-box" id="delete-confirm">
-      <p>⚠️ Are you sure? This action cannot be undone. The paste will be permanently deleted.</p>
-      <div class="confirm-buttons">
-        <button class="btn btn-delete" id="delete-confirm-btn" onclick="deletePaste()">
-          Yes, delete it<span class="spinner" id="delete-spinner"></span>
-        </button>
-        <button class="btn btn-view" onclick="hideDeleteConfirm()">Cancel</button>
+    <div class="modal-overlay" id="delete-modal">
+      <div class="modal">
+        <div class="modal-icon">🗑️</div>
+        <h3>Delete Paste</h3>
+        <p>Are you sure? This action cannot be undone.<br>The paste will be permanently deleted.</p>
+        <div class="modal-buttons">
+          <button class="btn btn-delete" id="delete-confirm-btn" onclick="deletePaste()">
+            Confirm Delete<span class="spinner" id="delete-spinner"></span>
+          </button>
+          <button class="btn btn-view" onclick="hideDeleteConfirm()">Cancel</button>
+        </div>
       </div>
     </div>
     <div class="status-msg" id="status-msg"></div>
@@ -1050,13 +1064,21 @@ function showStatus(msg, isError) {
 }
 
 function showDeleteConfirm() {
-  document.getElementById('delete-confirm').classList.add('show');
+  document.getElementById('delete-modal').classList.add('show');
   document.getElementById('delete-btn').disabled = true;
 }
 function hideDeleteConfirm() {
-  document.getElementById('delete-confirm').classList.remove('show');
+  document.getElementById('delete-modal').classList.remove('show');
   document.getElementById('delete-btn').disabled = false;
 }
+// Close modal on overlay click
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.id === 'delete-modal') hideDeleteConfirm();
+});
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hideDeleteConfirm();
+});
 
 async function extendPaste() {
   const sel = document.getElementById('extend-select');
