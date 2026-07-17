@@ -1384,7 +1384,7 @@ function serveHomepage() {
       </label>
     </div>
     <div class="hint-row">
-      <span>Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to create paste</span>
+      <span>Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send</span>
     </div>
     <div class="error-msg" id="error-msg"></div>
     <div class="actions">
@@ -1490,7 +1490,8 @@ function showError(msg){
   const el=document.getElementById('error-msg');
   el.textContent=msg;el.classList.add('show');
 }
-document.addEventListener('keydown',function(e){
+// Ctrl+Enter / Cmd+Enter to submit (bound to textarea)
+document.getElementById('content').addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();createPaste();}
 });
 function escapeHtml(str){
