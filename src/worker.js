@@ -533,6 +533,7 @@ async function getPasteView(request, id) {
 <title>${escapeHtml(displayTitle)} - PasteBin</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.0/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>hljs.highlightAll();</script>
 <style>
   *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -680,13 +681,13 @@ async function getPasteView(request, id) {
   </div>
   <div class="toolbar">
     <button onclick="copyContent()">📋 Copy</button>
-    ${language === 'markdown' ? '<button id="md-toggle" onclick="toggleMarkdown()">📝 Markdown Preview</button>' : ''}
+    <button id="md-toggle" onclick="toggleMarkdown()">📝 Markdown Preview</button>
   </div>
   <div class="code-block" id="code-block">
     <div class="line-numbers" aria-hidden="true" style="min-width:${lineNumberWidth}">${lineNumbersHtml}</div>
     <pre><code class="language-${escapeHtml(language)} hljs">${escapedContent}</code></pre>
   </div>
-  ${language === 'markdown' ? '<div class="md-preview" id="md-preview"></div>' : ''}
+  <div class="md-preview" id="md-preview"></div>
   <div class="footer">
     <a href="https://github.com/zzdbilly/pastebin">PasteBin</a> &mdash; simple text sharing
   </div>
@@ -703,7 +704,7 @@ function copyContent() {
   }).catch(function() {});
 }
 
-// Markdown preview toggle
+// Markdown preview toggle (uses marked library from CDN)
 function toggleMarkdown() {
   var toggleBtn = document.getElementById('md-toggle');
   var codeBlock = document.getElementById('code-block');
@@ -712,13 +713,23 @@ function toggleMarkdown() {
   if (preview.classList.contains('show')) {
     codeBlock.style.display = 'flex';
     preview.classList.remove('show');
-    toggleBtn.textContent = 'Markdown Preview';
+    toggleBtn.textContent = '📝 Markdown Preview';
     toggleBtn.classList.remove('active');
     hljs.highlightAll();
   } else {
     if (!preview.dataset.rendered) {
       var rawText = document.querySelector('pre code').textContent;
-      preview.innerHTML = renderMarkdown(rawText);
+      if (typeof marked !== 'undefined') {
+        marked.setOptions({ breaks: true, gfm: true });
+        preview.innerHTML = marked.parse(rawText);
+        // Apply syntax highlighting to code blocks in rendered markdown
+        var codeBlocks = preview.querySelectorAll('pre code');
+        for (var i = 0; i < codeBlocks.length; i++) {
+          hljs.highlightElement(codeBlocks[i]);
+        }
+      } else {
+        preview.innerHTML = '<p style="color:#f85149;">Markdown library failed to load. Showing raw text.</p><pre>' + rawText + '</pre>';
+      }
       preview.dataset.rendered = '1';
     }
     codeBlock.style.display = 'none';
@@ -728,144 +739,7 @@ function toggleMarkdown() {
   }
 }
 
-// Simple markdown renderer (no backticks used inside to avoid template literal conflict)
-function renderMarkdown(text) {
-  function esc(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-  function inline(s) {
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    s = s.replace(/~~(.+?)~~/g, '<del>$1</del>');
-    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-    s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" loading="lazy">');
-    return s;
-  }
-  // Inline code: use String.fromCharCode(96) for backtick
-  function applyInlineCode(s) {
-    var bt = String.fromCharCode(96);
-    var re = new RegExp(bt + '([^' + bt + ']+)' + bt, 'g');
-    return s.replace(re, '<code>$1</code>');
-  }
 
-  var lines = text.split('\n');
-  var bt = String.fromCharCode(96);
-  var html = '';
-  var inCodeBlock = false;
-  var codeBuf = '';
-
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-
-    // Fenced code block (detect with indexOf to avoid backtick literal in template)
-    if (line.indexOf(bt) === 0 && line.indexOf(bt + bt + bt) === 0) {
-      if (inCodeBlock) {
-        html += '<pre><code class="hljs">' + esc(codeBuf.replace(/\n$/, '')) + '</code></pre>\n';
-        codeBuf = '';
-        inCodeBlock = false;
-      } else {
-        inCodeBlock = true;
-      }
-      continue;
-    }
-    if (inCodeBlock) {
-      codeBuf += line + '\n';
-      continue;
-    }
-
-    // Headings
-    if (line.startsWith('###### ')) { html += '<h6>' + inline(applyInlineCode(esc(line.slice(7)))) + '</h6>\n'; continue; }
-    if (line.startsWith('##### ')) { html += '<h5>' + inline(applyInlineCode(esc(line.slice(6)))) + '</h5>\n'; continue; }
-    if (line.startsWith('#### ')) { html += '<h4>' + inline(applyInlineCode(esc(line.slice(5)))) + '</h4>\n'; continue; }
-    if (line.startsWith('### ')) { html += '<h3>' + inline(applyInlineCode(esc(line.slice(4)))) + '</h3>\n'; continue; }
-    if (line.startsWith('## ')) { html += '<h2>' + inline(applyInlineCode(esc(line.slice(3)))) + '</h2>\n'; continue; }
-    if (line.startsWith('# ')) { html += '<h1>' + inline(applyInlineCode(esc(line.slice(2)))) + '</h1>\n'; continue; }
-
-    // Horizontal rule
-    if (/^[-*_]{3,}\s*$/.test(line)) { html += '<hr>\n'; continue; }
-
-    // Blockquotes
-    if (line.startsWith('> ')) {
-      var quoteText = line.slice(2);
-      while (i + 1 < lines.length && lines[i + 1].startsWith('> ')) {
-        i++;
-        quoteText += '\n' + lines[i].slice(2);
-      }
-      html += '<blockquote>' + inline(applyInlineCode(esc(quoteText))) + '</blockquote>\n';
-      continue;
-    }
-
-    // Tables
-    if (line.indexOf('|') !== -1 && i + 1 < lines.length && /^\|?\s*[-:| ]+\s*\|?\s*[-:| ]+\s*\|?/.test(lines[i+1])) {
-      var headerCells = line.split('|').map(function(c){return c.trim();}).filter(Boolean);
-      var alignRow = lines[i+1].split('|').map(function(c){return c.trim();}).filter(Boolean);
-      var alignments = alignRow.map(function(c) {
-        if (c.startsWith(':') && c.endsWith(':')) return 'center';
-        if (c.endsWith(':')) return 'right';
-        return 'left';
-      });
-      html += '<table><thead><tr>';
-      for (var ti = 0; ti < headerCells.length; ti++) {
-        html += '<th style="text-align:' + alignments[ti] + '">' + inline(applyInlineCode(esc(headerCells[ti]))) + '</th>';
-      }
-      html += '</tr></thead><tbody>';
-      i += 2;
-      while (i < lines.length && lines[i].indexOf('|') !== -1 && lines[i].indexOf(bt+bt+bt) < 0) {
-        var cells = lines[i].split('|').map(function(c){return c.trim();}).filter(Boolean);
-        html += '<tr>';
-        for (var tj = 0; tj < cells.length && tj < alignments.length; tj++) {
-          html += '<td style="text-align:' + alignments[tj] + '">' + inline(applyInlineCode(esc(cells[tj]))) + '</td>';
-        }
-        html += '</tr>';
-        i++;
-      }
-      html += '</tbody></table>\n';
-      i--;
-      continue;
-    }
-
-    // Unordered list
-    if (/^\s*[-*+]\s+/.test(line)) {
-      html += '<ul>';
-      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
-        html += '<li>' + inline(applyInlineCode(esc(lines[i].replace(/^\s*[-*+]\s+/, '')))) + '</li>';
-        i++;
-      }
-      html += '</ul>\n';
-      i--;
-      continue;
-    }
-
-    // Ordered list
-    if (/^\s*\d+\.\s+/.test(line)) {
-      html += '<ol>';
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        html += '<li>' + inline(applyInlineCode(esc(lines[i].replace(/^\s*\d+\.\s+/, '')))) + '</li>';
-        i++;
-      }
-      html += '</ol>\n';
-      i--;
-      continue;
-    }
-
-    // Empty line
-    if (line.trim() === '') continue;
-
-    // Regular paragraph
-    html += '<p>' + inline(applyInlineCode(esc(line)));
-    while (i + 1 < lines.length && lines[i + 1].trim() !== '' && !lines[i + 1].startsWith('#') && lines[i + 1].indexOf(bt+bt+bt) < 0 && !lines[i + 1].startsWith('> ') && !/^[-*_]{3,}\s*$/.test(lines[i + 1]) && !/^\s*[-*+]\s+/.test(lines[i + 1]) && !/^\s*\d+\.\s+/.test(lines[i + 1]) && lines[i + 1].indexOf('|') < 0) {
-      i++;
-      html += '<br>' + inline(applyInlineCode(esc(lines[i])));
-    }
-    html += '</p>\n';
-  }
-
-  if (inCodeBlock && codeBuf) {
-    html += '<pre><code class="hljs">' + esc(codeBuf) + '</code></pre>\n';
-  }
-
-  return html;
-}
 
 // Line highlighting from URL param ?lines=...
 (function() {
