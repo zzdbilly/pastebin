@@ -519,9 +519,32 @@ async function getPasteView(request, id) {
   // Check if manage token is present in query string (from creation redirect)
   const manageTokenParam = url.searchParams.get('manage') || '';
 
-  // Generate line numbers
+  // Parse highlight lines from URL (?lines= or ?highlight=)
+  const highlightParam = url.searchParams.get('lines') || url.searchParams.get('highlight') || '';
+  const highlightSet = new Set();
+  if (highlightParam) {
+    const parts = highlightParam.split(',');
+    for (const part of parts) {
+      const trimmed = part.trim();
+      const rangeMatch = trimmed.match(/^(\d+)-(\d+)$/);
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1]);
+        const end = parseInt(rangeMatch[2]);
+        for (let n = start; n <= end; n++) highlightSet.add(n);
+      } else if (/^\d+$/.test(trimmed)) {
+        highlightSet.add(parseInt(trimmed));
+      }
+    }
+  }
+  const hasHighlight = highlightSet.size > 0;
+
+  // Generate line numbers with highlight data attribute
   const lineCount = paste.content.split('\n').length;
-  const lineNumbersHtml = Array.from({length: lineCount}, (_, i) => `<span>${i + 1}</span>`).join('');
+  const lineNumbersHtml = Array.from({length: lineCount}, (_, i) => {
+    const lineNum = i + 1;
+    const highlighted = highlightSet.has(lineNum);
+    return `<span data-line="${lineNum}"${highlighted ? ' class="ln-highlighted"' : ''}>${lineNum}</span>`;
+  }).join('');
   const lineNumberWidth = Math.max(3, String(lineCount).length + 1) + 'ch';
 
   const html = `<!DOCTYPE html>
@@ -585,6 +608,8 @@ async function getPasteView(request, id) {
     white-space: nowrap; overflow: hidden;
   }
   .line-numbers span { display: block; }
+  .line-numbers span.ln-highlighted { color: #e3b341; font-weight: 700; }
+  .line-numbers span.ln-highlighted::before { content: '● '; font-size: 10px; color: #e3b341; }
   pre {
     flex: 1; margin: 0; background: none; border: none;
     padding: 20px; overflow-x: auto; font-size: 14px; line-height: 1.5;
@@ -638,7 +663,8 @@ async function getPasteView(request, id) {
   .md-preview th { background: #21262d; font-weight: 600; }
   .md-preview img { max-width: 100%; border-radius: 6px; margin: 12px 0; }
   .md-preview hr { border: none; border-top: 1px solid #30363d; margin: 20px 0; }
-  .line-highlight { background: #1f2e3e; border-left: 3px solid #58a6ff; }
+  .line-highlight { background: rgba(227, 179, 65, 0.15); border-left: 3px solid #e3b341; }
+  .line-highlight .line-numbers { background: rgba(227, 179, 65, 0.1); }
   .footer { text-align: center; padding: 40px 0; font-size: 13px; color: #484f58; }
   .footer a { color: #58a6ff; text-decoration: none; }
   @media (max-width: 600px) {
@@ -682,6 +708,7 @@ async function getPasteView(request, id) {
   <div class="toolbar">
     <button onclick="copyContent()">📋 Copy</button>
     <button id="md-toggle" onclick="toggleMarkdown()">📝 Markdown Preview</button>
+    ${hasHighlight ? '<button onclick="copyHighlightLink()" style="background:#238636;border-color:#238636;color:#fff;">🔗 Copy Highlight Link</button>' : ''}
   </div>
   <div class="code-block" id="code-block">
     <div class="line-numbers" aria-hidden="true" style="min-width:${lineNumberWidth}">${lineNumbersHtml}</div>
@@ -693,6 +720,12 @@ async function getPasteView(request, id) {
   </div>
 </div>
 <script>
+// Highlight lines data
+var HIGHLIGHT_LINES = ${JSON.stringify([...highlightSet])};
+var HIGHLIGHT_PARAM = ${JSON.stringify(highlightParam)};
+var PASTE_ID = ${JSON.stringify(id)};
+var VIEW_TOKEN = ${JSON.stringify(token)};
+
 // Copy content
 function copyContent() {
   var text = document.querySelector('pre code').textContent;
@@ -700,6 +733,21 @@ function copyContent() {
     var btn = document.querySelector('.toolbar button');
     var orig = btn.textContent;
     btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  }).catch(function() {});
+}
+
+// Copy highlight link
+function copyHighlightLink() {
+  var params = new URLSearchParams();
+  params.set('lines', HIGHLIGHT_PARAM);
+  if (VIEW_TOKEN) params.set('token', VIEW_TOKEN);
+  var link = window.location.origin + '/' + PASTE_ID + '?' + params.toString();
+  navigator.clipboard.writeText(link).then(function() {
+    var btns = document.querySelectorAll('.toolbar button');
+    var btn = btns[btns.length - 1];
+    var orig = btn.textContent;
+    btn.textContent = '✅ Copied!';
     setTimeout(function() { btn.textContent = orig; }, 2000);
   }).catch(function() {});
 }
@@ -741,43 +789,65 @@ function toggleMarkdown() {
 
 
 
-// Line highlighting from URL param ?lines=...
+// Line highlighting from URL param ?lines=... or ?highlight=...
 (function() {
-  var params = new URLSearchParams(window.location.search);
-  var linesParam = params.get('lines');
-  if (!linesParam) return;
+  if (!HIGHLIGHT_LINES.length) return;
 
   var lineEls = document.querySelectorAll('.line-numbers span');
   if (!lineEls.length) return;
 
-  var linesToHighlight = [];
-  var parts = linesParam.split(',');
-  for (var p = 0; p < parts.length; p++) {
-    var part = parts[p].trim();
-    if (/^(\d+)-(\d+)$/.test(part)) {
-      var m = part.match(/^(\d+)-(\d+)$/);
-      var start = parseInt(m[1]);
-      var end = parseInt(m[2]);
-      for (var n = start; n <= end; n++) {
-        linesToHighlight.push(n);
-      }
-    } else if (/^\d+$/.test(part)) {
-      linesToHighlight.push(parseInt(part));
-    }
+  var hlMap = {};
+  for (var h = 0; h < HIGHLIGHT_LINES.length; h++) {
+    hlMap[HIGHLIGHT_LINES[h]] = true;
   }
 
-  if (!linesToHighlight.length) return;
-
+  // Highlight line numbers with gold styling
   var firstHighlighted = null;
   for (var i = 0; i < lineEls.length; i++) {
     var lineNum = i + 1;
-    if (linesToHighlight.indexOf(lineNum) !== -1) {
-      lineEls[i].parentNode.style.background = '#1f2e3e';
-      lineEls[i].parentNode.style.borderLeft = '3px solid #58a6ff';
-      if (!firstHighlighted) firstHighlighted = lineEls[i].parentNode;
+    if (hlMap[lineNum]) {
+      var el = lineEls[i];
+      el.style.background = 'rgba(227, 179, 65, 0.15)';
+      el.style.borderLeft = '3px solid #e3b341';
+      el.style.paddingLeft = '8px';
+      el.style.marginLeft = '-11px';
+      el.style.color = '#e3b341';
+      el.style.fontWeight = '700';
+      if (!firstHighlighted) firstHighlighted = el;
     }
   }
 
+  // Highlight code area: build gradient bars on the pre element
+  var codeBlock = document.getElementById('code-block');
+  var pre = codeBlock ? codeBlock.querySelector('pre') : null;
+  if (pre) {
+    var preStyle = window.getComputedStyle(pre);
+    var lineHeight = parseFloat(preStyle.lineHeight) || 21;
+    var paddingTop = parseFloat(preStyle.paddingTop) || 20;
+    var sortedLines = HIGHLIGHT_LINES.slice().sort(function(a, b) { return a - b; });
+
+    // Build multiple linear-gradient backgrounds, one per highlighted line
+    var cssGradients = [];
+    for (var g = 0; g < sortedLines.length; g++) {
+      var ln = sortedLines[g];
+      if (ln < 1 || ln > lineEls.length) continue;
+      var top = paddingTop + (ln - 1) * lineHeight;
+      var bottom = top + lineHeight;
+      // Each gradient draws a gold bar for one line, transparent elsewhere
+      cssGradients.push(
+        'linear-gradient(to bottom, ' +
+        'rgba(227,179,65,0.12) ' + top + 'px, ' +
+        'rgba(227,179,65,0.12) ' + bottom + 'px, ' +
+        'transparent ' + bottom + 'px)'
+      );
+    }
+    if (cssGradients.length) {
+      pre.style.backgroundImage = cssGradients.join(', ');
+      pre.style.backgroundRepeat = 'no-repeat';
+    }
+  }
+
+  // Scroll to first highlighted line
   if (firstHighlighted) {
     setTimeout(function() {
       firstHighlighted.scrollIntoView({ behavior: 'smooth', block: 'center' });
