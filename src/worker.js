@@ -557,6 +557,7 @@ async function getPasteView(request, id) {
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.0/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script>hljs.highlightAll();</script>
 <style>
   *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -769,7 +770,12 @@ function toggleMarkdown() {
       var rawText = document.querySelector('pre code').textContent;
       if (typeof marked !== 'undefined') {
         marked.setOptions({ breaks: true, gfm: true });
-        preview.innerHTML = marked.parse(rawText);
+        // 用 DOMPurify 净化 marked 输出，防止存储型 XSS
+        var rendered = marked.parse(rawText);
+        if (typeof DOMPurify !== 'undefined') {
+          rendered = DOMPurify.sanitize(rendered);
+        }
+        preview.innerHTML = rendered;
         // Apply syntax highlighting to code blocks in rendered markdown
         var codeBlocks = preview.querySelectorAll('pre code');
         for (var i = 0; i < codeBlocks.length; i++) {
