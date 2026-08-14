@@ -31,9 +31,24 @@ export function generateManageToken() {
 }
 
 // Validate expires_in value (1h, 24h, 7d)
+// Accepts either a pre-defined numeric key (e.g. '3600') or a human-readable
+// duration like '30m' | '1h' | '12h' | '1d' | '7d' | '30d'.
+// Falls back to 3600 (1h) when the value is unknown.
 export function parseExpiresIn(val) {
   const allowed = { '1800': 1800, '3600': 3600, '43200': 43200, '86400': 86400, '604800': 604800, '2592000': 2592000 };
-  return allowed[val] || 3600;
+  if (allowed[val]) return allowed[val];
+
+  // Human-readable duration: <number><m|h|d>
+  const m = /^(\d+)([mhd])$/.exec(String(val).trim());
+  if (m) {
+    const n = parseInt(m[1], 10);
+    const unit = m[2];
+    if (unit === 'm') return n * 60;
+    if (unit === 'h') return n * 3600;
+    if (unit === 'd') return n * 86400;
+  }
+
+  return 3600;
 }
 
 // SHA-256 hash using Web Crypto API

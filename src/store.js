@@ -98,13 +98,55 @@ export async function createPaste(request) {
   const baseUrl = `${url.protocol}//${url.host}`;
   const pasteUrl = `${baseUrl}/${id}`;
   const manageUrl = `${baseUrl}/manage/${id}?token=${manageToken}`;
+  const rawUrl = `${baseUrl}/${id}/raw`;
 
   return jsonResponse({
     id,
     url: pasteUrl,
     manage_url: manageUrl,
+    raw_url: rawUrl,
     expires_at: new Date(paste.expires_at).toISOString(),
   });
+}
+
+// --- Views counter ---
+//
+// Views are stored under a dedicated lightweight KV key `views:{id}` holding a
+// plain integer string. We keep it separate from the main paste record so that
+// counting a view never requires reading/deserialising the (potentially large)
+// content record. KV get/put is eventually consistent, so this is a plain
+// read-modify-write — no transactions needed (the task explicitly allows this).
+const viewsKey = (id) => `views:${id}`;
+
+// Atomically (best-effort, eventually consistent) increment the view counter.
+export async function incrementViews(id) {
+  try {
+    const key = viewsKey(id);
+    const current = parseInt(await KV.get(key) || '0', 10) || 0;
+    await KV.put(key, String(current + 1));
+    return current + 1;
+  } catch (e) {
+    // Never fail the view request because of a counter hiccup.
+    return (parseInt(await KV.get(viewsKey(id)) || '0', 10) || 0) + 1;
+  }
+}
+
+// Read the current view counter (0 if never viewed / key absent).
+export async function getViews(id) {
+  try {
+    return parseInt(await KV.get(viewsKey(id)) || '0', 10) || 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Delete the view counter when the paste itself is removed/expired.
+export async function deleteViews(id) {
+  try {
+    await KV.delete(viewsKey(id));
+  } catch (e) {
+    // best-effort cleanup
+  }
 }
 
 // --- API: POST /api/verify ---

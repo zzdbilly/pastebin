@@ -96,6 +96,79 @@ wrangler kv:namespace create PASTEBIN
 
 高亮链接可复制分享。用户打开链接后会自动滚动到第一个高亮行。
 
+## 访问统计
+
+每个粘贴记录「已被查看次数」（views），在查看页显示。计数存储在一个独立的轻量 KV key（`views:{id}`）中，与正文分开，避免每次查看都读整条大记录。
+
+- 内容查看（`GET /{id}`，含密码验证通过）计数 +1
+- raw 视图（`GET /{id}/raw`）也计数
+- 管理页查看不计数
+- 粘贴删除/过期/阅后即焚时，对应的 views 计数一并清理
+- KV 最终一致性，累加即可，不做事务
+
+> 注：CF KV 为最终一致性，views 可能有瞬时轻微滞后，属预期行为。
+
+## 公开 API（v1）
+
+供第三方程序编程创建/读取粘贴，返回纯 JSON。
+
+### 创建粘贴 `POST /api/v1/pastes`
+
+请求体 JSON（字段均为可选，除 `content` 外）：
+
+```json
+{
+  "title": "示例",
+  "content": "要分享的内容",
+  "language": "auto",          // 可选，auto/plaintext/python 等，默认自动识别
+  "expires_in": "1d",          // 可选，30m/1h/12h/1d/7d/30d，默认 1h
+  "password": "***",     // 可选，密码保护
+  "burn_after_reading": false,  // 可选，阅后即焚
+  "custom_slug": "my-slug"     // 可选，自定义短 ID
+}
+```
+
+响应：
+
+```json
+{
+  "id": "BHTRM8",
+  "url": "https://pastebin.billycust716.workers.dev/BHTRM8",
+  "manage_url": "https://pastebin.billycust716.workers.dev/manage/BHTRM8?token=...",
+  "raw_url": "https://pastebin.billycust716.workers.dev/BHTRM8/raw",
+  "expires_at": "2026-08-14T03:40:50.528Z"
+}
+```
+
+### 读取粘贴 `GET /api/v1/pastes/{id}`
+
+成功响应：
+
+```json
+{
+  "id": "BHTRM8",
+  "title": "示例",
+  "content": "要分享的内容",
+  "language": "plaintext",
+  "created_at": "2026-08-14T02:40:50.528Z",
+  "expires_at": "2026-08-14T03:40:50.528Z",
+  "burn_after_reading": false,
+  "views": "2",
+  "manage_url": "...",
+  "raw_url": "..."
+}
+```
+
+错误响应：
+
+| 状态码 | 场景 |
+|--------|------|
+| `404` | 粘贴不存在 / 已过期 |
+| `403` | 密码保护且未提供正确密码 |
+| `400` | 请求参数不合法 |
+
+密码保护的粘贴：请求带 `?password=***` 参数即可读取。阅后即焚的粘贴首次读取后删除，再次读取返回 `404`。
+
 ## 环境变量
 
 | 变量 | 说明 |

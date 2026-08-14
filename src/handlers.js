@@ -1,6 +1,6 @@
 // --- 请求处理 handlers (handlers.js) ---
 import { jsonResponse, escapeHtml, formatTimeLeft, parseExpiresIn } from './lib/utils.js';
-import { validateViewToken } from './store.js';
+import { validateViewToken, incrementViews, getViews, deleteViews } from './store.js';
 import { render404Page, renderPasswordPage } from './pages.js';
 
 // --- Raw endpoint ---
@@ -20,6 +20,7 @@ export async function getPasteRaw(request, id) {
 
   if (Date.now() > paste.expires_at) {
     await KV.delete(id);
+    await deleteViews(id);
     return jsonResponse({ error: 'Expired' }, 404);
   }
 
@@ -35,7 +36,11 @@ export async function getPasteRaw(request, id) {
 
   if (paste.burn_after_reading) {
     await KV.delete(id);
+    await deleteViews(id);
   }
+
+  // A successful content read (password passed / not protected) counts as a view.
+  await incrementViews(id);
 
   return new Response(paste.content, {
     headers: {
@@ -68,6 +73,7 @@ export async function getPasteView(request, id) {
   const now = Date.now();
   if (now > paste.expires_at) {
     await KV.delete(id);
+    await deleteViews(id);
     return new Response(render404Page('This paste has expired.'), {
       headers: { 'Content-Type': 'text/html;charset=utf-8', 'Access-Control-Allow-Origin': '*' },
       status: 404
@@ -85,6 +91,9 @@ export async function getPasteView(request, id) {
       });
     }
   }
+
+  // A successful view (password passed or not protected) counts as a view.
+  const viewCount = await incrementViews(id);
 
   const burnt = paste.burn_after_reading;
   if (burnt) {
@@ -288,6 +297,7 @@ export async function getPasteView(request, id) {
     <span>📅 ${createdAt}</span>
     <span>⏰ ${expiresAt}</span>
     <span>${timeLeft}</span>
+    <span>👁 已被查看 ${viewCount} 次</span>
     <span class="badge-lang">${escapeHtml(language)}</span>
     ${paste.password_hash ? '<span class="badge-locked">🔒 Protected</span>' : ''}
     ${burnt ? '<span class="badge-burnt">☠ Burn after reading</span>' : ''}

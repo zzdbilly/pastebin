@@ -2,10 +2,22 @@
 import { createPaste, verifyPassword } from './store.js';
 import { handleManageApi, getPasteRaw, getPasteView } from './handlers.js';
 import { renderManagePage, serveHomepage } from './pages.js';
+import { handleCreateV1, handleReadV1 } from './api.js';
 
 async function handleRequest(request) {
   const url = new URL(request.url);
   const path = url.pathname;
+
+  // === 公开 API v1 ===
+  // POST /api/v1/pastes → create
+  if (path === '/api/v1/pastes' && request.method === 'POST') {
+    return handleCreateV1(request);
+  }
+  // GET /api/v1/pastes/{id} → read (id: 6 chars or custom slug)
+  const v1ReadMatch = path.match(/^\/api\/v1\/pastes\/([a-zA-Z0-9-]{1,32})$/);
+  if (v1ReadMatch && request.method === 'GET') {
+    return handleReadV1(request, v1ReadMatch[1]);
+  }
 
   // POST /api/new → createPaste
   if (path === '/api/new') {
