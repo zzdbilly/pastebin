@@ -46,9 +46,16 @@
 ```
 pastebin/
 ├── src/
-│   └── worker.js             # Workers 主逻辑（~1700 行单文件）
+│   ├── index.js              # Worker 入口（绑定 KV + CORS + 路由分发）
+│   ├── router.js             # 主路由分发
+│   ├── handlers.js           # 请求处理（raw/view 等）
+│   ├── pages.js              # HTML 渲染（首页/查看/管理/404）
+│   ├── store.js              # KV 数据操作
+│   ├── language.js           # 语法检测（22 种语言）
+│   └── lib/
+│       └── utils.js          # 工具函数（id/token/sha256/escapeHtml 等）
 ├── docs/superpowers/         # 方案设计文档
-├── wrangler.toml             # CF Workers 配置
+├── wrangler.toml             # CF Workers 配置（main: src/index.js）
 ├── package.json
 └── README.md
 ```

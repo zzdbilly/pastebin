@@ -1,5 +1,5 @@
 name = "pastebin"
-main = "src/worker.js"
+main = "src/index.js"
 compatibility_date = "2026-07-06"
 
 kv_namespaces = [
