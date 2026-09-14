@@ -467,6 +467,14 @@ export function serveHomepage() {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='8' width='36' height='32' rx='6' stroke='%2358a6ff' stroke-width='2.5' fill='%23161b22'/%3E%3Crect x='9' y='5' width='26' height='6' rx='3' fill='%23238636'/%3E%3Crect x='12' y='5' width='8' height='6' rx='3' fill='%232ea043'/%3E%3Ctext x='24' y='12' text-anchor='middle' fill='%23fff' font-size='8' font-weight='700' font-family='sans-serif'%3EP%3C/text%3E%3C/svg%3E">
 <title>PasteBin — share text simply</title>
+<meta name="description" content="轻量文本分享工具：粘贴文本即得短链接，支持语法高亮、Markdown 预览、自定义短码、过期时间与密码保护。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PasteBin">
+<meta property="og:title" content="PasteBin — share text simply">
+<meta property="og:description" content="轻量文本分享工具：粘贴文本即得短链接，支持语法高亮、Markdown 预览、自定义短码、过期时间与密码保护。">
+<meta property="og:url" content="https://pastebin.billycust716.workers.dev/">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#0d1117">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   body {
