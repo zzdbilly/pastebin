@@ -2,7 +2,7 @@
 
 > 纯前端 + Cloudflare Workers 的轻量文本粘贴分享工具。
 
-🌐 **https://pastebin.billycust716.workers.dev**
+🌐 **https://pastebin.billymust.workers.dev**
 
 ---
 
@@ -133,9 +133,9 @@ wrangler kv:namespace create PASTEBIN
 ```json
 {
   "id": "BHTRM8",
-  "url": "https://pastebin.billycust716.workers.dev/BHTRM8",
-  "manage_url": "https://pastebin.billycust716.workers.dev/manage/BHTRM8?token=...",
-  "raw_url": "https://pastebin.billycust716.workers.dev/BHTRM8/raw",
+  "url": "https://pastebin.billymust.workers.dev/BHTRM8",
+  "manage_url": "https://pastebin.billymust.workers.dev/manage/BHTRM8?token=...",
+  "raw_url": "https://pastebin.billymust.workers.dev/BHTRM8/raw",
   "expires_at": "2026-08-14T03:40:50.528Z"
 }
 ```

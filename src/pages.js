@@ -472,7 +472,7 @@ export function serveHomepage() {
 <meta property="og:site_name" content="PasteBin">
 <meta property="og:title" content="PasteBin — share text simply">
 <meta property="og:description" content="轻量文本分享工具：粘贴文本即得短链接，支持语法高亮、Markdown 预览、自定义短码、过期时间与密码保护。">
-<meta property="og:url" content="https://pastebin.billycust716.workers.dev/">
+<meta property="og:url" content="https://pastebin.billymust.workers.dev/">
 <meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#0d1117">
 <style>
